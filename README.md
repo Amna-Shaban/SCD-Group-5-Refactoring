@@ -1,3 +1,20 @@
+# SCD Group 5 — Yatzy Refactoring Kata
+
+## Project Description
+This repository contains the Software Construction & Development (SCD) refactoring assignment for **Group 5**, focusing on the **Yatzy Refactoring Kata (Python)**. The objective is to identify code smells in the legacy Yatzy scoring implementation and apply Martin Fowler's refactoring techniques to improve internal design, modularity, and readability while preserving 100% of external behavior verified through characterization tests.
+
+## How to Run the Tests
+1. Clone the repository and switch to the `develop` branch:
+   ```bash
+   git clone [https://github.com/Amna-Shaban/SCD-Group-5-Refactoring.git](https://github.com/Amna-Shaban/SCD-Group-5-Refactoring.git)
+   cd SCD-Group-5-Refactoring
+   git checkout develop
+  ## Group 5 Members
+* Aamna Shaban — SWEN241101104
+* Laiba Shaban — SWEN241101060
+* Mahnoor shahid — SWEN241101068
+* Khadija Latif — SWEN241101053
+* Arooba Irfan — SWEN242101066
 _Support this and all my katas via [Patreon](https://www.patreon.com/EmilyBache)_
  
  # Yatzy Refactoring Kata
