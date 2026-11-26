@@ -31,7 +31,7 @@ class Yatzy:
                 return sum(dice)
 
             case YatzyCategory.YATZY:
-                return 50 if 5 in dice_frequencies.values() else 0
+                return 50 if self._is_yatzy(dice_frequencies) else 0
 
             case YatzyCategory.ONES:
                 return self._score_face(dice_frequencies, 1)
@@ -61,16 +61,16 @@ class Yatzy:
                 return self._score_highest_of_kind(dice_frequencies, min_count=4, stop_on_first=False)
 
             case YatzyCategory.SMALL_STRAIGHT:
-                return self._score_straight(dice, dice_frequencies, excluded_face=6)
+                return sum(dice) if self._is_straight(dice_frequencies, excluded_face=6) else 0
 
             case YatzyCategory.LARGE_STRAIGHT:
-                return self._score_straight(dice, dice_frequencies, excluded_face=1)
+                return sum(dice) if self._is_straight(dice_frequencies, excluded_face=1) else 0
 
             case YatzyCategory.TWO_PAIRS:
                 return self._score_two_pairs(dice_frequencies)
 
             case YatzyCategory.FULL_HOUSE:
-                return self._score_full_house(dice, dice_frequencies)
+                return sum(dice) if self._is_full_house(dice_frequencies) else 0
 
         return 0
 
@@ -79,6 +79,17 @@ class Yatzy:
         for die in dice:
             frequencies[die] += 1
         return frequencies
+
+    def _is_yatzy(self, dice_frequencies: dict[int, int]) -> bool:
+        return 5 in dice_frequencies.values()
+
+    def _is_straight(self, dice_frequencies: dict[int, int], excluded_face: int) -> bool:
+        distinct_singles = sum(1 for freq in dice_frequencies.values() if freq == 1)
+        return distinct_singles == 5 and dice_frequencies[excluded_face] == 0
+
+    def _is_full_house(self, dice_frequencies: dict[int, int]) -> bool:
+        frequencies = dice_frequencies.values()
+        return 2 in frequencies and 3 in frequencies
 
     def _score_face(self, dice_frequencies: dict[int, int], face: int) -> int:
         return dice_frequencies[face] * face
@@ -94,22 +105,8 @@ class Yatzy:
                     break
         return score
 
-    def _score_straight(
-        self, dice, dice_frequencies: dict[int, int], excluded_face: int
-    ) -> int:
-        distinct_singles = sum(1 for freq in dice_frequencies.values() if freq == 1)
-        if distinct_singles == 5 and dice_frequencies[excluded_face] == 0:
-            return sum(dice)
-        return 0
-
     def _score_two_pairs(self, dice_frequencies: dict[int, int]) -> int:
         matching_faces = [value for value in DICE_VALUES if dice_frequencies[value] >= 2]
         if len(matching_faces) == 2:
             return sum(value * 2 for value in matching_faces)
-        return 0
-
-    def _score_full_house(self, dice, dice_frequencies: dict[int, int]) -> int:
-        frequencies = dice_frequencies.values()
-        if 2 in frequencies and 3 in frequencies:
-            return sum(dice)
         return 0
