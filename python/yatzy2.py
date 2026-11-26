@@ -1,6 +1,16 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
+DICE_FACES_DESCENDING = [6, 5, 4, 3, 2, 1]
+YATZY_BONUS_SCORE = 50
+STRAIGHT_DISTINCT_COUNT = 5
+SMALL_STRAIGHT_EXCLUDED_FACE = 6
+LARGE_STRAIGHT_EXCLUDED_FACE = 1
+PAIR_SIZE = 2
+TWO_PAIRS_COUNT = 2
+FULL_HOUSE_PAIR_COUNT = 2
+FULL_HOUSE_TRIPLE_COUNT = 3
+
 
 class YatzyCategory(Enum):
     CHANCE = 0
@@ -20,9 +30,6 @@ class YatzyCategory(Enum):
     FULL_HOUSE = 14
 
 
-DICE_VALUES = [6, 5, 4, 3, 2, 1]
-
-
 class CategoryScorer(ABC):
     @abstractmethod
     def score(self, dice, dice_frequencies: dict[int, int]) -> int:
@@ -36,10 +43,10 @@ class ChanceScorer(CategoryScorer):
 
 class YatzyBonusScorer(CategoryScorer):
     def score(self, dice, dice_frequencies: dict[int, int]) -> int:
-        return 50 if 5 in dice_frequencies.values() else 0
+        return YATZY_BONUS_SCORE if 5 in dice_frequencies.values() else 0
 
 
-class FaceScorer(CategoryScorer):
+class SingleFaceScorer(CategoryScorer):
     def __init__(self, face: int) -> None:
         self.face = face
 
@@ -48,15 +55,15 @@ class FaceScorer(CategoryScorer):
 
 
 class HighestOfKindScorer(CategoryScorer):
-    def __init__(self, min_count: int, stop_on_first: bool) -> None:
-        self.min_count = min_count
+    def __init__(self, required_count: int, stop_on_first: bool) -> None:
+        self.required_count = required_count
         self.stop_on_first = stop_on_first
 
     def score(self, dice, dice_frequencies: dict[int, int]) -> int:
         total = 0
-        for value in DICE_VALUES:
-            if dice_frequencies[value] >= self.min_count:
-                total = value * self.min_count
+        for face in DICE_FACES_DESCENDING:
+            if dice_frequencies[face] >= self.required_count:
+                total = face * self.required_count
                 if self.stop_on_first:
                     break
         return total
@@ -67,24 +74,24 @@ class StraightScorer(CategoryScorer):
         self.excluded_face = excluded_face
 
     def score(self, dice, dice_frequencies: dict[int, int]) -> int:
-        distinct_singles = sum(1 for freq in dice_frequencies.values() if freq == 1)
-        if distinct_singles == 5 and dice_frequencies[self.excluded_face] == 0:
+        single_count = sum(1 for freq in dice_frequencies.values() if freq == 1)
+        if single_count == STRAIGHT_DISTINCT_COUNT and dice_frequencies[self.excluded_face] == 0:
             return sum(dice)
         return 0
 
 
 class TwoPairsScorer(CategoryScorer):
     def score(self, dice, dice_frequencies: dict[int, int]) -> int:
-        matching_faces = [value for value in DICE_VALUES if dice_frequencies[value] >= 2]
-        if len(matching_faces) == 2:
-            return sum(value * 2 for value in matching_faces)
+        paired_faces = [face for face in DICE_FACES_DESCENDING if dice_frequencies[face] >= PAIR_SIZE]
+        if len(paired_faces) == TWO_PAIRS_COUNT:
+            return sum(face * PAIR_SIZE for face in paired_faces)
         return 0
 
 
 class FullHouseScorer(CategoryScorer):
     def score(self, dice, dice_frequencies: dict[int, int]) -> int:
         frequencies = dice_frequencies.values()
-        if 2 in frequencies and 3 in frequencies:
+        if FULL_HOUSE_PAIR_COUNT in frequencies and FULL_HOUSE_TRIPLE_COUNT in frequencies:
             return sum(dice)
         return 0
 
@@ -92,17 +99,17 @@ class FullHouseScorer(CategoryScorer):
 CATEGORY_SCORERS: dict[YatzyCategory, CategoryScorer] = {
     YatzyCategory.CHANCE: ChanceScorer(),
     YatzyCategory.YATZY: YatzyBonusScorer(),
-    YatzyCategory.ONES: FaceScorer(1),
-    YatzyCategory.TWOS: FaceScorer(2),
-    YatzyCategory.THREES: FaceScorer(3),
-    YatzyCategory.FOURS: FaceScorer(4),
-    YatzyCategory.FIVES: FaceScorer(5),
-    YatzyCategory.SIXES: FaceScorer(6),
-    YatzyCategory.PAIR: HighestOfKindScorer(min_count=2, stop_on_first=True),
-    YatzyCategory.THREE_OF_A_KIND: HighestOfKindScorer(min_count=3, stop_on_first=False),
-    YatzyCategory.FOUR_OF_A_KIND: HighestOfKindScorer(min_count=4, stop_on_first=False),
-    YatzyCategory.SMALL_STRAIGHT: StraightScorer(excluded_face=6),
-    YatzyCategory.LARGE_STRAIGHT: StraightScorer(excluded_face=1),
+    YatzyCategory.ONES: SingleFaceScorer(1),
+    YatzyCategory.TWOS: SingleFaceScorer(2),
+    YatzyCategory.THREES: SingleFaceScorer(3),
+    YatzyCategory.FOURS: SingleFaceScorer(4),
+    YatzyCategory.FIVES: SingleFaceScorer(5),
+    YatzyCategory.SIXES: SingleFaceScorer(6),
+    YatzyCategory.PAIR: HighestOfKindScorer(required_count=PAIR_SIZE, stop_on_first=True),
+    YatzyCategory.THREE_OF_A_KIND: HighestOfKindScorer(required_count=3, stop_on_first=False),
+    YatzyCategory.FOUR_OF_A_KIND: HighestOfKindScorer(required_count=4, stop_on_first=False),
+    YatzyCategory.SMALL_STRAIGHT: StraightScorer(excluded_face=SMALL_STRAIGHT_EXCLUDED_FACE),
+    YatzyCategory.LARGE_STRAIGHT: StraightScorer(excluded_face=LARGE_STRAIGHT_EXCLUDED_FACE),
     YatzyCategory.TWO_PAIRS: TwoPairsScorer(),
     YatzyCategory.FULL_HOUSE: FullHouseScorer(),
 }
@@ -110,14 +117,14 @@ CATEGORY_SCORERS: dict[YatzyCategory, CategoryScorer] = {
 
 class Yatzy:
     def score(self, dice, category: YatzyCategory) -> int:
-        dice_frequencies = self._calculate_frequencies(dice)
+        dice_frequencies = self._count_dice_frequencies(dice)
         scorer = CATEGORY_SCORERS.get(category)
         if scorer is None:
             return 0
         return scorer.score(dice, dice_frequencies)
 
-    def _calculate_frequencies(self, dice) -> dict[int, int]:
-        frequencies = {value: 0 for value in DICE_VALUES}
+    def _count_dice_frequencies(self, dice) -> dict[int, int]:
+        frequencies = {face: 0 for face in DICE_FACES_DESCENDING}
         for die in dice:
             frequencies[die] += 1
         return frequencies
